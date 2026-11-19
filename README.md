@@ -82,7 +82,7 @@ python app.py
 
 ---
 
-### GitHub Par Push Karne Ki Commands
+### GitHub Commands
 
 PowerShell mein `hospital-flow-autogen` folder ke andar yeh commands chala dein:
 
