@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hospital Flow & Resource Optimizer — AutoGen + FastAPI</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #131c31;
+      --card-2: #0d1526;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --border: #26354f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { margin: 0; font-size: 1.45rem; font-weight: 700; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+    .badge {
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+    }
+    .unit-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 8px; }
+    .metric-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin: 5px 0; }
+    .muted { color: var(--muted); }
+    .warn-text { color: var(--warn); font-weight: 600; }
+    .danger-text { color: var(--danger); font-weight: 600; }
+    .ok-text { color: var(--accent-2); font-weight: 600; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      align-items: end;
+    }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+    input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card-2);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    button {
+      width: 100%;
+      padding: 11px 16px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #051926;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .section { margin-top: 22px; }
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 1.12rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* Rich Markdown container used for OperationsLead & Agent TextMessages */
+    .md-view {
+      background: var(--card-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      font-size: 0.93rem;
+      overflow-x: auto;
+    }
+    .md-view h1, .md-view h2, .md-view h3 {
+      margin-top: 18px;
+      margin-bottom: 10px;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .md-view h2 { font-size: 1.12rem; }
+    .md-view h3 { font-size: 1.0rem; }
+    .md-view > :first-child { margin-top: 0; }
+    .md-view p { margin: 8px 0; }
+    .md-view ul, .md-view ol { margin: 8px 0 12px 22px; }
+    .md-view li { margin: 4px 0; }
+    .md-view hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+    .md-view table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 16px;
+      font-size: 0.88rem;
+    }
+    .md-view th, .md-view td {
+      border: 1px solid var(--border);
+      padding: 9px 11px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .md-view th {
+      background: #17253d;
+      color: #e2e8f0;
+      font-weight: 700;
+    }
+    .md-view tr:nth-child(even) td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Trace cards */
+    .trace-card {
+      background: var(--card-2);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .trace-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    }
+    .trace-agent { font-weight: 700; color: var(--accent); font-size: 0.96rem; }
+    .trace-type {
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: rgba(148, 163, 184, 0.12);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .trace-md {
+      padding: 0;
+      border: none;
+      background: transparent;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .mini-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.86rem;
+    }
+    .mini-title { font-weight: 700; color: #e2e8f0; margin-bottom: 6px; }
+    .status-line { margin-top: 10px; font-size: 0.9rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Hospital Resource & Patient Flow Optimizer</h1>
+        <div class="subtitle">Multi-Agent Decision Support powered by AutoGen + FastAPI</div>
+      </div>
+      <div class="badge" id="modelBadge">Loading...</div>
+    </header>
+
+    <div class="grid-3" id="unitsGrid"></div>
+
+    <div class="card">
+      <div class="controls">
+        <div>
+          <label for="extraAdmissions">Extra Surge Admissions (Next 4h)</label>
+          <input id="extraAdmissions" type="number" min="0" max="200" value="12" />
+        </div>
+        <div>
+          <label for="expeditedDischarges">Expedited Discharges (Next 4h)</label>
+          <input id="expeditedDischarges" type="number" min="0" max="200" value="6" />
+        </div>
+        <div>
+          <label for="maxMessages">Max Agent Turns</label>
+          <input id="maxMessages" type="number" min="4" max="20" value="10" />
+        </div>
+        <div>
+          <button id="runBtn" onclick="runOptimization()">Run AutoGen Team</button>
+        </div>
+      </div>
+      <div class="status-line" id="statusLine">Ready.</div>
+    </div>
+
+    <div class="section card">
+      <h2 class="section-title">OperationsLead Action Plan</h2>
+      <div class="md-view" id="planBox">Click "Run AutoGen Team" to generate a live operational plan.</div>
+    </div>
+
+    <div class="section card">
+      <h2 class="section-title">Multi-Agent & Tool Execution Trace</h2>
+      <div id="traceBox"><span class="muted">No run trace yet.</span></div>
+    </div>
+  </div>
+
+  <script>
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Repairs markdown tables if a row has fewer columns than the header
+    function repairMarkdownTables(md) {
+      const lines = md.split("\n");
+      const out = [];
+      let headerCols = null;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+          const cells = trimmed
+            .slice(1, -1)
+            .split("|")
+            .map(c => c.trim());
+
+          const nextTrimmed = (lines[i + 1] || "").trim();
+          const isSeparatorRow = /^\|?[\s:-]+(\|[\s:-]+)+\|?$/.test(nextTrimmed);
+
+          if (isSeparatorRow) {
+            headerCols = cells.length;
+            out.push("| " + cells.join(" | ") + " |");
+            continue;
+          }
+
+          if (/^[\s:-]+$/.test(cells.join(""))) {
+            if (headerCols) {
+              const sep = Array(headerCols).fill("---").join(" | ");
+              out.push("| " + sep + " |");
+            } else {
+              out.push(line);
+            }
+            continue;
+          }
+
+          if (headerCols && cells.length !== headerCols) {
+            while (cells.length < headerCols) {
+              cells.push("Under review — monitor live unit metrics");
+            }
+            if (cells.length > headerCols) {
+              const head = cells.slice(0, headerCols - 1);
+              const tail = cells.slice(headerCols - 1).join("; ");
+              out.push("| " + [...head, tail].join(" | ") + " |");
+              continue;
+            }
+          }
+
+          const normalized = cells.map(c => (c === "" ? "Tracked via ops huddle" : c));
+          out.push("| " + normalized.join(" | ") + " |");
+        } else {
+          if (!trimmed.startsWith("|")) {
+            headerCols = null;
+          }
+          out.push(line);
+        }
+      }
+      return out.join("\n");
+    }
+
+    function renderMarkdownHtml(markdownText) {
+      const cleaned = repairMarkdownTables(
+        String(markdownText || "").replace(/\bTERMINATE\b/g, "").trim()
+      );
+      if (!cleaned) {
+        return "<span class='muted'>Completed without text output.</span>";
+      }
+      if (window.marked && typeof window.marked.parse === "function") {
+        window.marked.setOptions({ gfm: true, breaks: false });
+        return window.marked.parse(cleaned);
+      }
+      return `<div style="white-space:pre-wrap;">${escapeHtml(cleaned)}</div>`;
+    }
+
+    function tryParsePythonDict(content) {
+      const str = String(content || "").trim();
+      if (!str.startsWith("{") && !str.startsWith("[")) return null;
+      try {
+        const jsonCandidate = str
+          .replace(/\bNone\b/g, "null")
+          .replace(/\bTrue\b/g, "true")
+          .replace(/\bFalse\b/g, "false")
+          .replace(/'/g, '"');
+        return JSON.parse(jsonCandidate);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function renderToolSummaryHtml(content) {
+      const parsed = tryParsePythonDict(content);
+      if (!parsed || typeof parsed !== "object") {
+        return `<div class="md-view trace-md">${renderMarkdownHtml(content)}</div>`;
+      }
+
+      if (Array.isArray(parsed.units)) {
+        const cards = parsed.units.map(u => `
+          <div class="mini-box">
+            <div class="mini-title">${escapeHtml(u.unit_name || "Unit")}</div>
+            <div>Beds: <b>${escapeHtml(u.occupied_beds)}/${escapeHtml(u.total_beds)}</b></div>
+            <div>Nurses: <b>${escapeHtml(u.nurses_on_duty)}/${escapeHtml(u.nurses_required)}</b></div>
+            <div>Avg LOS: <b>${escapeHtml(u.avg_los_days)} d</b></div>
+            <div>Discharge Ready: <b>${escapeHtml(u.discharge_ready_patients ?? 0)}</b> (ETA: <b>${escapeHtml(u.discharge_eta_hours ?? "Missing")}</b>)</div>
+            <div>Pending Step-Down: <b>${escapeHtml(u.pending_step_down_transfers ?? 0)}</b></div>
+          </div>
+        `).join("");
+        return `
+          <div class="muted" style="font-size:0.85rem;">
+            Snapshot Time: <b>${escapeHtml(parsed.timestamp || "")}</b> |
+            ED Waiting: <b>${escapeHtml(parsed.ed_waiting_patients ?? "-")}</b> |
+            ED Incoming/hr: <b>${escapeHtml(parsed.ed_incoming_per_hour ?? "-")}</b>
+          </div>
+          <div class="summary-grid">${cards}</div>
+        `;
+      }
+
+      if (Array.isArray(parsed.unit_reports)) {
+        const cards = parsed.unit_reports.map(r => `
+          <div class="mini-box">
+            <div class="mini-title">${escapeHtml(r.unit || "Unit")}</div>
+            <div>Occupancy: <b>${escapeHtml(r.occupancy_pct)}%</b> (${escapeHtml(r.open_beds)} open beds)</div>
+            <div>Nurse Deficit: <b>${escapeHtml(r.nurse_deficit)}</b></div>
+            <div>Discharge Ready: <b>${escapeHtml(r.discharge_ready)}</b> | Step-Down: <b>${escapeHtml(r.pending_step_down)}</b></div>
+          </div>
+        `).join("");
+        const flags = (parsed.missing_data_flags || []).join("; ");
+        return `
+          <div class="muted" style="font-size:0.85rem;">
+            ED Waiting: <b>${escapeHtml(parsed.ed_waiting_patients ?? "-")}</b> |
+            ED Incoming/hr: <b>${escapeHtml(parsed.ed_incoming_per_hour ?? "-")}</b>
+            ${flags ? ` | <span class="warn-text">Missing Data: ${escapeHtml(flags)}</span>` : ""}
+          </div>
+          <div class="summary-grid">${cards}</div>
+        `;
+      }
+
+      if ("projected_bed_shortfall_4h" in parsed) {
+        return `
+          <div class="summary-grid">
+            <div class="mini-box"><div class="mini-title">Current Open Beds</div><div><b>${escapeHtml(parsed.current_open_beds_all_units)}</b></div></div>
+            <div class="mini-box"><div class="mini-title">4h Surge Admissions</div><div><b>+${escapeHtml(parsed.extra_admissions_4h)}</b></div></div>
+            <div class="mini-box"><div class="mini-title">4h Expedited Discharges</div><div><b>-${escapeHtml(parsed.expedited_discharges_4h)}</b></div></div>
+            <div class="mini-box"><div class="mini-title">Projected Shortfall & Status</div><div><b>${escapeHtml(parsed.projected_bed_shortfall_4h)}</b> (${escapeHtml(parsed.status)})</div></div>
+          </div>
+        `;
+      }
+
+      return `<div class="md-view trace-md"><pre style="margin:0; white-space:pre-wrap;">${escapeHtml(JSON.stringify(parsed, null, 2))}</pre></div>`;
+    }
+
+    async function loadInitialData() {
+      try {
+        const healthRes = await fetch("/health");
+        const health = await healthRes.json();
+        document.getElementById("modelBadge").textContent = `Model: ${health.model}`;
+
+        const snapRes = await fetch("/api/snapshot");
+        const data = await snapRes.json();
+        const units = data.summary.unit_reports || [];
+        const flags = data.summary.missing_data_flags || [];
+
+        const grid = document.getElementById("unitsGrid");
+        grid.innerHTML = units.map(u => {
+          const occClass = u.occupancy_pct >= 95 ? "danger-text" : (u.occupancy_pct >= 90 ? "warn-text" : "ok-text");
+          const defClass = (u.nurse_deficit || 0) > 0 ? "danger-text" : "ok-text";
+          return `
+            <div class="card">
+              <div class="unit-title">${escapeHtml(u.unit)}</div>
+              <div class="metric-row"><span class="muted">Occupancy</span><span class="${occClass}">${u.occupancy_pct}%</span></div>
+              <div class="metric-row"><span class="muted">Open Beds</span><span>${u.open_beds}</span></div>
+              <div class="metric-row"><span class="muted">Nurse Deficit</span><span class="${defClass}">${u.nurse_deficit}</span></div>
+              <div class="metric-row"><span class="muted">Discharge Ready</span><span>${u.discharge_ready}</span></div>
+              <div class="metric-row"><span class="muted">Pending Step-Down</span><span>${u.pending_step_down}</span></div>
+            </div>
+          `;
+        }).join("");
+
+        if (flags.length > 0) {
+          document.getElementById("statusLine").innerHTML =
+            `ED Waiting: <b>${data.summary.ed_waiting_patients}</b> | ED Incoming/hr: <b>${data.summary.ed_incoming_per_hour}</b> | <span class="warn-text">Data Flags: ${escapeHtml(flags.join("; "))}</span>`;
+        }
+      } catch (err) {
+        document.getElementById("statusLine").textContent = `Error loading snapshot: ${err.message}`;
+      }
+    }
+
+    async function runOptimization() {
+      const btn = document.getElementById("runBtn");
+      const status = document.getElementById("statusLine");
+      const planBox = document.getElementById("planBox");
+      const traceBox = document.getElementById("traceBox");
+
+      const extraAdmissions = parseInt(document.getElementById("extraAdmissions").value || "12", 10);
+      const expeditedDischarges = parseInt(document.getElementById("expeditedDischarges").value || "6", 10);
+      const maxMessages = parseInt(document.getElementById("maxMessages").value || "10", 10);
+
+      btn.disabled = true;
+      status.textContent = "Running AutoGen agents (ResourceAnalyst → FlowSpecialist → ContingencyCoordinator → OperationsLead)...";
+      planBox.innerHTML = "<span class='muted'>Working...</span>";
+      traceBox.innerHTML = "";
+
+      try {
+        const res = await fetch("/api/optimize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            extra_admissions_next_4h: extraAdmissions,
+            expedited_discharges_next_4h: expeditedDischarges,
+            max_messages: maxMessages
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || "Optimization failed");
+        }
+
+        planBox.innerHTML = renderMarkdownHtml(data.final_plan);
+        const trace = data.trace || [];
+        traceBox.innerHTML = trace.map(item => {
+          const bodyHtml = item.type === "ToolCallSummaryMessage"
+            ? renderToolSummaryHtml(item.content)
+            : `<div class="md-view trace-md">${renderMarkdownHtml(item.content)}</div>`;
+
+          return `
+            <div class="trace-card">
+              <div class="trace-header">
+                <span class="trace-agent">${escapeHtml(item.source)}</span>
+                <span class="trace-type">${escapeHtml(item.type)}</span>
+              </div>
+              ${bodyHtml}
+            </div>
+          `;
+        }).join("");
+        status.textContent = `Completed (${trace.length} messages).`;
+      } catch (err) {
+        planBox.innerHTML = `<span class="danger-text">Error: ${escapeHtml(err.message)}</span>`;
+        status.textContent = "Run failed.";
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    loadInitialData();
+  </script>
+</body>
+</html>

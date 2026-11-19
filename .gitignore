@@ -1,0 +1,21 @@
+# Environments & secrets (NEVER commit API keys or venv)
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+
+# Python cache & build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Local helper / editor files
+check_models.py
+.vscode/
+.idea/
+*.log

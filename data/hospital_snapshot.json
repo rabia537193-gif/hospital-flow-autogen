@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-11-19T12:30:00Z",
+  "ed_incoming_per_hour": 14,
+  "ed_waiting_patients": 19,
+  "units": [
+    {
+      "unit_name": "ICU",
+      "total_beds": 20,
+      "occupied_beds": 19,
+      "nurses_on_duty": 8,
+      "nurses_required": 10,
+      "avg_los_days": 4.2,
+      "pending_step_down_transfers": 3
+    },
+    {
+      "unit_name": "Medical Ward A",
+      "total_beds": 45,
+      "occupied_beds": 43,
+      "nurses_on_duty": 9,
+      "nurses_required": 9,
+      "avg_los_days": 3.5,
+      "discharge_ready_patients": 6,
+      "discharge_eta_hours": 3.0
+    },
+    {
+      "unit_name": "Surgical Ward B",
+      "total_beds": 35,
+      "occupied_beds": 32,
+      "nurses_on_duty": 6,
+      "nurses_required": 8,
+      "avg_los_days": 2.9,
+      "discharge_ready_patients": 4,
+      "discharge_eta_hours": null
+    }
+  ]
+}
